@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thick Lightning & Fire Launch</title>
+    <style>
+        :root {
+            --neon-cyan: #00f3ff;
+            --dark-bg: #050505;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--dark-bg);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            font-family: 'Arial', sans-serif;
+            perspective: 1000px; 
+        }
+
+        #white-flash {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: #ffffff; z-index: 100; opacity: 0;
+            pointer-events: none; transition: opacity 0.1s ease-out;
+        }
+        .do-flash { opacity: 1 !important; transition: none !important; }
+        .flash-fade { opacity: 0 !important; transition: opacity 1.5s ease-in !important; }
+
+        canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+        
+        #circuitCanvas { z-index: 1; opacity: 0.8; pointer-events: none; } /* Opacity dinaikkan */
+        #fireCanvas { z-index: 5; pointer-events: none; mix-blend-mode: screen; } 
+        #mainCanvas { z-index: 30; pointer-events: none; } 
+
+        .container { position: relative; z-index: 50; }
+
+        #startBtn {
+            position: relative; width: 220px; height: 220px;
+            background: rgba(0, 10, 20, 0.9);
+            border: 4px solid var(--neon-cyan); border-radius: 50%;
+            color: var(--neon-cyan); font-size: 26px; font-weight: 800;
+            text-transform: uppercase; cursor: pointer; outline: none;
+            box-shadow: 0 0 20px var(--neon-cyan), 0 0 40px rgba(0, 243, 255, 0.6), inset 0 0 30px rgba(0, 243, 255, 0.8);
+            transition: all 0.4s cubic-bezier(0.23, 1, 0.320, 1);
+            letter-spacing: 3px; z-index: 50;
+            text-shadow: 0 0 10px rgba(0, 243, 255, 0.8);
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        #startBtn:hover {
+            background: var(--neon-cyan); color: var(--dark-bg);
+            box-shadow: 0 0 50px var(--neon-cyan), 0 0 100px var(--neon-cyan);
+            transform: scale(1.1);
+        }
+
+        .btn-sucked {
+            transform: scale(0) rotate(720deg) !important; opacity: 0;
+            transition: all 1s cubic-bezier(0.6, -0.28, 0.735, 0.045) !important;
+        }
+
+        .ripple {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 220px; height: 220px; border-radius: 50%;
+            border: 3px solid rgba(0, 243, 255, 0.8); /* Border ripple dipertebal */
+            animation: rippleAnim 2.5s infinite;
+            pointer-events: none; z-index: 10;
+        }
+        .ripple:nth-child(2) { animation-delay: 0.8s; }
+        .ripple:nth-child(3) { animation-delay: 1.6s; }
+        @keyframes rippleAnim {
+            0% { width: 220px; height: 220px; opacity: 0.9; border-width: 4px; }
+            100% { width: 650px; height: 650px; opacity: 0; border-width: 0px; }
+        }
+        .hide-ripples { opacity: 0; transition: opacity 0.3s; }
+
+        #result-container {
+            position: absolute; top: 45%; left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 40; 
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            opacity: 0; 
+            transition: opacity 2s ease-out;
+            pointer-events: none; 
+            width: 100%;
+        }
+
+        .result-visible { opacity: 1 !important; }
+
+        .spin-logo {
+            width: 220px; height: 220px;
+            object-fit: contain; border-radius: 50%; 
+            background-color: #fff; 
+            border: 5px solid var(--neon-cyan); 
+            box-shadow: 0 0 40px var(--neon-cyan); 
+            margin-bottom: 20px;
+            animation: spin3D 4s linear infinite;
+        }
+        @keyframes spin3D {
+            from { transform: rotateY(0deg); }
+            to { transform: rotateY(360deg); }
+        }
+
+        #message {
+            font-family: 'Arial Black', 'Impact', sans-serif;
+            font-size: 60px; font-weight: 900;
+            color: #ffcc00; letter-spacing: 2px; 
+            margin-bottom: 5px; text-align: center;
+            text-transform: uppercase;
+            text-shadow: 2px 2px 0px #000, 0 0 20px #ff4d00, 0 0 40px #ff0000;
+        }
+        
+        #sub-message {
+            font-family: 'Verdana', sans-serif;
+            font-size: 28px; font-weight: bold;
+            color: #00f3ff; letter-spacing: 4px; 
+            text-align: center; text-transform: uppercase;
+            background: rgba(0,0,0,0.3); padding: 5px 20px;
+            border-radius: 10px;
+            text-shadow: 1px 1px 0 #000, 0 0 15px #00f3ff;
+        }
+
+        @media (max-width: 768px) {
+            #message { font-size: 36px; }
+            #sub-message { font-size: 16px; letter-spacing: 1px; }
+            .spin-logo { width: 150px; height: 150px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="white-flash"></div>
+    <canvas id="circuitCanvas"></canvas>
+    <canvas id="fireCanvas"></canvas>
+
+    <div class="container">
+        <div class="ripple"></div>
+        <div class="ripple"></div>
+        <div class="ripple"></div>
+        <button id="startBtn">NYALAKAN API</button>
+    </div>
+
+    <canvas id="mainCanvas"></canvas>
+
+    <div id="result-container">
+        <img class="spin-logo" src="images/arka.png" alt="Logo">
+        <div id="message">API UNGGUN MENYALA</div>
+        <div id="sub-message">PERKEMAHAN SMP PGRI 1 SURABAYA</div>
+    </div>
+
+    <script>
+        const btn = document.getElementById('startBtn');
+        const ripples = document.querySelectorAll('.ripple');
+        const resultContainer = document.getElementById('result-container');
+        const flashDiv = document.getElementById('white-flash');
+        
+        const cCanvas = document.getElementById('circuitCanvas');
+        const cCtx = cCanvas.getContext('2d');
+        const mCanvas = document.getElementById('mainCanvas'); 
+        const mCtx = mCanvas.getContext('2d');
+        const fCanvas = document.getElementById('fireCanvas'); 
+        const fCtx = fCanvas.getContext('2d');
+        
+        let width, height;
+        let circuitAnimationId;
+        let isAnimating = false;
+
+        function resize() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            cCanvas.width = width; cCanvas.height = height;
+            mCanvas.width = width; mCanvas.height = height;
+            fCanvas.width = width; fCanvas.height = height;
+            cCtx.fillStyle = '#050505'; cCtx.fillRect(0, 0, width, height);
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // 1. BACKGROUND CIRCUIT - DIPERTEBAL
+        let walkers = [];
+        class CircuitWalker {
+            constructor() {
+                this.x = Math.random() * width; this.y = Math.random() * height;
+                this.dir = Math.floor(Math.random() * 4); this.speed = 4; // Lebih cepat dikit
+                this.stepsMoved = 0; this.stepsToTurn = 20 + Math.floor(Math.random() * 80);
+                this.tail = []; this.tailLength = 40; 
+            }
+            update() {
+                this.tail.push({x: this.x, y: this.y});
+                if (this.tail.length > this.tailLength) this.tail.shift();
+                if (this.dir === 0) this.y -= this.speed; else if (this.dir === 1) this.x += this.speed;
+                else if (this.dir === 2) this.y += this.speed; else if (this.dir === 3) this.x -= this.speed;
+                this.stepsMoved++;
+                if (this.stepsMoved > this.stepsToTurn) {
+                    this.dir = (this.dir + (Math.random() > 0.5 ? 1 : 3)) % 4;
+                    this.stepsMoved = 0;
+                }
+                if (this.x < 0 || this.x > width || this.y < 0 || this.y > height) {
+                    this.x = Math.random() * width; this.y = Math.random() * height; this.tail = [];
+                }
+            }
+            draw() {
+                if(this.tail.length < 2) return;
+                cCtx.beginPath(); cCtx.moveTo(this.tail[0].x, this.tail[0].y);
+                for(let i=1; i<this.tail.length; i++) cCtx.lineTo(this.tail[i].x, this.tail[i].y);
+                
+                // --- UPDATE: GARIS LEBIH TEBAL & TERANG ---
+                cCtx.strokeStyle = 'rgba(0, 243, 255, 0.5)'; // Opacity naik
+                cCtx.lineWidth = 3; // Tebal garis naik dari 1 ke 3
+                cCtx.lineCap = 'round';
+                cCtx.stroke();
+
+                // Tambahan glow di kepala sirkuit
+                cCtx.beginPath();
+                cCtx.arc(this.x, this.y, 4, 0, Math.PI*2);
+                cCtx.fillStyle = '#fff';
+                cCtx.shadowBlur = 10;
+                cCtx.shadowColor = '#00f3ff';
+                cCtx.fill();
+                cCtx.shadowBlur = 0;
+            }
+        }
+        function initCircuits() {
+            for(let i=0; i<35; i++) walkers.push(new CircuitWalker());
+            animateCircuits();
+        }
+        function animateCircuits() {
+            cCtx.fillStyle = 'rgba(5, 5, 5, 0.2)'; cCtx.fillRect(0, 0, width, height);
+            walkers.forEach(w => { w.update(); w.draw(); });
+            circuitAnimationId = requestAnimationFrame(animateCircuits);
+        }
+        initCircuits();
+
+        // 2. REALISTIC FIRE
+        let fireParticles = [];
+        class FireParticle {
+            constructor() {
+                this.x = Math.random() * width;
+                this.y = height; 
+                this.vx = (Math.random() - 0.5) * 1.5; 
+                this.vy = -(Math.random() * 3 + 2); 
+                this.life = 1.0;
+                this.decay = Math.random() * 0.01 + 0.005;
+                this.size = Math.random() * 30 + 20; 
+            }
+            update() {
+                this.x += this.vx; this.y += this.vy;
+                this.vx += (Math.random() - 0.5) * 0.1; 
+                this.size *= 0.98; this.life -= this.decay;
+            }
+            draw(ctx) {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                const h = 0 + (this.life * 50); 
+                const s = 100;
+                const l = 50 + (this.life * 20); 
+                const a = this.life * 0.6; 
+                ctx.fillStyle = `hsla(${h}, ${s}%, ${l}%, ${a})`;
+                ctx.fill();
+            }
+        }
+
+        // 3. WARP & LIGHTNING
+        class WarpParticle {
+            constructor(cx, cy) {
+                this.cx = cx; this.cy = cy;
+                const angle = Math.random() * Math.PI * 2;
+                const radius = Math.max(width, height) * (0.6 + Math.random());
+                this.x = cx + Math.cos(angle) * radius;
+                this.y = cy + Math.sin(angle) * radius;
+                this.baseSpeed = 5 + Math.random() * 10;
+                this.prevX = this.x; this.prevY = this.y;
+                this.color = Math.random() > 0.8 ? '#fff' : '#00f3ff';
+            }
+            update(speedMult) {
+                this.prevX = this.x; this.prevY = this.y;
+                const dx = this.cx - this.x; const dy = this.cy - this.y;
+                const dist = Math.sqrt(dx*dx + dy*dy);
+                const angle = Math.atan2(dy, dx);
+                const speed = this.baseSpeed * speedMult * (1 + (500/(dist+1)));
+                this.x += Math.cos(angle) * speed; this.y += Math.sin(angle) * speed;
+                if(dist < 20) {
+                    const angle = Math.random() * Math.PI * 2; const radius = Math.max(width, height);
+                    this.x = this.cx + Math.cos(angle) * radius; this.y = this.cy + Math.sin(angle) * radius;
+                    this.prevX = this.x; this.prevY = this.y;
+                }
+            }
+            draw(ctx) {
+                ctx.beginPath(); ctx.moveTo(this.prevX, this.prevY); ctx.lineTo(this.x, this.y);
+                // --- UPDATE: WARP LEBIH TEBAL ---
+                ctx.strokeStyle = this.color; ctx.lineWidth = 4; ctx.stroke();
+            }
+        }
+
+        // --- UPDATE: PETIR LEBIH TEBAL & JELAS ---
+        function drawLightning(ctx, x1, y1, x2, y2, color) {
+            const dist = Math.hypot(x2-x1, y2-y1); const steps = dist / 15;
+            
+            // Hitung poin path petir
+            let points = [];
+            points.push({x: x1, y: y1});
+            for(let i=0; i<steps; i++){
+                const t = (i+1)/steps;
+                const nx = x1 + (x2-x1)*t; const ny = y1 + (y2-y1)*t;
+                const noise = (Math.random()-0.5)*30; // Noise lebih besar
+                const ang = Math.atan2(y2-y1, x2-x1);
+                points.push({
+                    x: nx + Math.cos(ang+Math.PI/2)*noise,
+                    y: ny + Math.sin(ang+Math.PI/2)*noise
+                });
+            }
+
+            // GAMBAR LAYER 1: GLOW TEBAL (Warna Cyan/Warna Petir)
+            ctx.beginPath();
+            ctx.moveTo(points[0].x, points[0].y);
+            for(let p of points) ctx.lineTo(p.x, p.y);
+            
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 8; // SANGAT TEBAL
+            ctx.shadowBlur = 30; // GLOW KUAT
+            ctx.shadowColor = color;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.stroke();
+
+            // GAMBAR LAYER 2: INTI PUTIH (Supaya terlihat tajam/menyilaukan)
+            ctx.beginPath();
+            ctx.moveTo(points[0].x, points[0].y);
+            for(let p of points) ctx.lineTo(p.x, p.y);
+            
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 3; // INTI PUTIH
+            ctx.shadowBlur = 0; // Reset blur untuk inti
+            ctx.stroke();
+        }
+
+        function triggerLaunchSystem() {
+            if(isAnimating) return;
+            isAnimating = true;
+
+            cancelAnimationFrame(circuitAnimationId);
+            cCtx.fillStyle = '#000'; cCtx.fillRect(0,0,width,height);
+            btn.classList.add('btn-sucked');
+            ripples.forEach(r => r.classList.add('hide-ripples'));
+
+            // WARP
+            let warpParticles = [];
+            const cx = width/2; const cy = height/2;
+            for(let i=0; i<150; i++) warpParticles.push(new WarpParticle(cx, cy));
+            let warpFrame = 0; const maxWarp = 80;
+
+            function loopWarp() {
+                mCtx.fillStyle = 'rgba(0,0,0,0.3)'; mCtx.fillRect(0,0,width,height);
+                warpFrame++;
+                const speedMult = Math.pow(warpFrame/30, 3);
+                warpParticles.forEach(p => { p.update(speedMult); p.draw(mCtx); });
+                mCtx.beginPath(); mCtx.arc(cx, cy, warpFrame, 0, Math.PI*2); mCtx.fillStyle = '#000'; mCtx.fill();
+
+                if(warpFrame < maxWarp) requestAnimationFrame(loopWarp);
+                else triggerLightningPhase();
+            }
+            loopWarp(); 
+
+            function triggerLightningPhase() {
+                flashDiv.classList.add('do-flash');
+                mCtx.clearRect(0,0,width,height); 
+                setTimeout(() => {
+                    flashDiv.classList.remove('do-flash');
+                    flashDiv.classList.add('flash-fade');
+                    startLightning();
+                }, 50);
+            }
+
+            function startLightning() {
+                let lightFrame = 0; const maxLight = 50;
+                const lightInterval = setInterval(() => {
+                    mCtx.fillStyle = 'rgba(5,5,5,0.4)'; mCtx.fillRect(0,0,width,height);
+                    lightFrame++;
+                    const count = 6; 
+                    for(let i=0; i<count; i++){
+                        const ang = Math.random() * Math.PI*2;
+                        const len = Math.random() * (Math.max(width,height)/1.5);
+                        const tx = cx + Math.cos(ang)*len; const ty = cy + Math.sin(ang)*len;
+                        const col = Math.random()>0.5 ? '#fff' : '#00f3ff';
+                        drawLightning(mCtx, cx, cy, tx, ty, col);
+                    }
+                    if(lightFrame > maxLight) {
+                        clearInterval(lightInterval);
+                        mCtx.clearRect(0,0,width,height);
+                        resultContainer.classList.add('result-visible');
+                        startFireAnimation();
+                    }
+                }, 30);
+            }
+
+            function startFireAnimation() {
+                function loopFire() {
+                    fCtx.clearRect(0, 0, width, height);
+                    fCtx.globalCompositeOperation = 'lighter'; 
+
+                    for(let i=0; i<10; i++) {
+                        fireParticles.push(new FireParticle());
+                    }
+
+                    for(let i = fireParticles.length - 1; i >= 0; i--) {
+                        let p = fireParticles[i];
+                        p.update();
+                        p.draw(fCtx);
+                        if(p.life <= 0) fireParticles.splice(i, 1);
+                    }
+                    
+                    fCtx.globalCompositeOperation = 'source-over';
+                    requestAnimationFrame(loopFire);
+                }
+                loopFire();
+            }
+        }
+
+        btn.addEventListener('click', triggerLaunchSystem);
+        document.addEventListener('keydown', function(event) {
+            if (event.code === 'Space' || event.code === 'Enter') {
+                event.preventDefault(); triggerLaunchSystem();
+            }
+        });
+    </script>
+</body>
+</html>
